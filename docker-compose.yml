@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgress_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: ${POSTGRES_DB:-learn_backend}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./localdev/data/learn_backend_pgdata:/var/lib/postgresql/data
