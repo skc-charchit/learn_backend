@@ -1,0 +1,64 @@
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+from learn_backend.app.core.config import settings
+
+# Create the SQLAlchemy engine
+engine = create_engine(
+    settings.DATABASE_URL,
+    # connect_args={"check_same_thread": False}, ## Only for SQLite, not needed for Postgres
+    echo=settings.DEBUG,
+)
+
+# Create sessionmaker factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create a base class for our models
+Base = declarative_base()
+
+
+# Dependency to get a database session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# init db
+def init_db():
+    # important: ensures models are registered before creating tables
+    from learn_backend.app.models.todo import Todo  # noqa: F401
+
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables initialized")
+
+
+# seed_db() - ONLY loads data
+def seed_db():
+    import json
+    from pathlib import Path
+
+    from learn_backend.app.models.todo import Todo  # noqa: F401
+
+    session = SessionLocal()
+    try:
+        if session.query(Todo).count() == 0:
+            seed_file = (
+                Path(__file__).parent.parent.parent.parent.parent
+                / "localdev/data/seed_data.json"
+            )
+            if seed_file.exists():
+                with open(seed_file, "r") as f:
+                    todos_data = json.load(f)
+
+                for todo_data in todos_data:
+                    todo = Todo(**todo_data)
+                    session.add(todo)
+
+                session.commit()
+                print(f"✅ Loaded {len(todos_data)} todos")
+    finally:
+        session.close()

@@ -1,13 +1,81 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from learn_backend.app.core.database import get_db
+from learn_backend.app.schemas.todos import TodoCreate, TodoResponse, TodoUpdate
+from learn_backend.app.services.todos import (
+    create_todo,
+    delete_todo,
+    get_todo,
+    update_todo,
+)
 
 router = APIRouter()
 
 
-@router.get("/")
-async def get_todos():
-    return {"message": "Get all todos"}
-
-
+# create a todo in the DB
 @router.post("/")
-async def create_todo():
-    return {"message": "Create a new todo"}
+async def create_todo_endpoint(
+    todo: TodoCreate,
+    session: Session = Depends(get_db),
+):
+    # create a new todo item in the database
+    todo_item = create_todo(session, todo)
+    return todo_item
+
+
+# get a TODO item by id
+@router.get(
+    "/{todo_id}",
+    response_model=TodoResponse,
+    status_code=200,
+)
+def get_todo_endpoint(
+    todo_id: int,
+    session: Session = Depends(get_db),
+):
+    todo_item = get_todo(session, todo_id)
+    if not todo_item:
+        raise HTTPException(
+            status_code=404,
+            detail=f"TODO item not found with id {todo_id}",
+        )
+    return todo_item
+
+
+# update a TODO item by id
+@router.put(
+    "/{todo_id}",
+    response_model=TodoResponse,
+    status_code=200,
+)
+def update_todo_endpoint(
+    todo_id: int,
+    todo: TodoUpdate,
+    session: Session = Depends(get_db),
+):
+    todo_item = update_todo(session, todo_id, todo)
+    if not todo_item:
+        raise HTTPException(
+            status_code=404,
+            detail=f"TODO item not found with id {todo_id}",
+        )
+    return todo_item
+
+
+# hard delete a TODO item by id
+@router.delete(
+    "/{todo_id}",
+    status_code=204,
+)
+def hard_delete_todo_endpoint(
+    todo_id: int,
+    session: Session = Depends(get_db),
+):
+    result = delete_todo(session, todo_id)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"TODO item not found or not soft-deleted with id {todo_id}",
+        )
+    return None
